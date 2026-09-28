@@ -60,6 +60,8 @@ static constexpr const char* use_hw_shader = citra_setting(BaseKeys::use_hw_shad
 static constexpr const char* use_shader_jit = citra_setting(BaseKeys::use_shader_jit);
 static constexpr const char* shaders_accurate_mul = citra_setting(BaseKeys::shaders_accurate_mul);
 static constexpr const char* use_disk_shader_cache = citra_setting(BaseKeys::use_disk_shader_cache);
+static constexpr const char* async_shader_compilation =
+    citra_setting(BaseKeys::async_shader_compilation);
 static constexpr const char* resolution_factor = citra_setting(BaseKeys::resolution_factor);
 static constexpr const char* texture_filter = citra_setting(BaseKeys::texture_filter);
 static constexpr const char* texture_sampling = citra_setting(BaseKeys::texture_sampling);
@@ -377,6 +379,25 @@ static constexpr retro_core_option_v2_definition option_definitions[] = {
         config::enabled
     },
     {
+        config::graphics::async_shader_compilation,
+        "Asynchronous Shader Compilation",
+        "Async Shaders",
+        "Compile shaders on background threads, so the game keeps its speed while they "
+        "compile. Until a draw's shader is ready, that draw is skipped.",
+        nullptr,
+        config::category::graphics,
+        {
+            { config::enabled, "Enabled" },
+            { config::disabled, "Disabled" },
+            { nullptr, nullptr }
+        },
+#ifdef __PROSPERO__
+        config::enabled
+#else
+        config::disabled
+#endif
+    },
+    {
         config::graphics::resolution_factor,
         "Internal Resolution",
         "Internal Resolution",
@@ -405,7 +426,12 @@ static constexpr retro_core_option_v2_definition option_definitions[] = {
             { "18", "18x (7200x4320)" },
             { nullptr, nullptr }
         },
+#ifdef __PROSPERO__
+        /* The PS5 renders at the highest internal resolution. */
+        "18"
+#else
         "1"
+#endif
     },
     {
         config::graphics::texture_filter,
@@ -997,6 +1023,15 @@ static void ParseGraphicsOptions(void) {
     Settings::values.use_disk_shader_cache =
         LibRetro::FetchVariable(config::graphics::use_disk_shader_cache, config::enabled) ==
         config::enabled;
+
+#ifdef __PROSPERO__
+    constexpr const char* async_shaders_default = config::enabled;
+#else
+    constexpr const char* async_shaders_default = config::disabled;
+#endif
+    Settings::values.async_shader_compilation =
+        LibRetro::FetchVariable(config::graphics::async_shader_compilation,
+                                async_shaders_default) == config::enabled;
 
     auto resolution = LibRetro::FetchVariable(config::graphics::resolution_factor, "1");
     Settings::values.resolution_factor = std::stoi(resolution);
